@@ -1,6 +1,11 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useState, useEffect } from 'react';
+import SettingsModal from '@/components/SettingsModal';
+import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useCelestialStore } from '@/stores/useCelestialStore';
+import { CELESTIAL_BODIES } from '@/data/celestialBodies';
 
 /**
  * DashboardShell — main layout scaffold.
@@ -29,7 +34,13 @@ export default function DashboardShell() {
         <div className="flex items-center gap-4 crt-text-dim">
           <span>SECTOR 7-G</span>
           <span className="crt-flicker">● ONLINE</span>
-          <SystemClock />
+          <LiveClock />
+          <button 
+            onClick={() => useSettingsStore.getState().setIsSettingsOpen(true)}
+            className="hover:crt-glow transition-colors cursor-pointer ml-2"
+          >
+            [ CONFIG ]
+          </button>
         </div>
       </header>
 
@@ -54,13 +65,14 @@ export default function DashboardShell() {
 
             {/* HUD overlay — target label */}
             <div className="absolute bottom-3 left-3 pointer-events-none select-none">
-              <div className="text-xs crt-text-dim tracking-widest opacity-70">
-                ◇ TARGET: EARTH
-              </div>
+              <TargetLabel />
             </div>
-            <div className="absolute bottom-3 right-3 pointer-events-none select-none">
+            <div className="absolute bottom-3 right-3 pointer-events-none select-none text-right">
               <div className="text-xs crt-text-dim tracking-widest opacity-70">
                 REAL-TIME
+              </div>
+              <div className="text-[10px] crt-text-dim tracking-widest opacity-50 mt-1">
+                <LiveClock showDate />
               </div>
             </div>
           </div>
@@ -87,6 +99,8 @@ export default function DashboardShell() {
         <span>ORION MONITORING SYSTEM // PHASE 1</span>
         <span className="opacity-50">ALL SYSTEMS NOMINAL</span>
       </footer>
+
+      <SettingsModal />
     </div>
   );
 }
@@ -118,7 +132,59 @@ function PanelFooter({ label }: { label: string }) {
   );
 }
 
-function SystemClock() {
-  // Simple static clock — a real one would tick, but that's out of scope
-  return <span suppressHydrationWarning>{new Date().toISOString().slice(11, 19)} UTC</span>;
+
+function LiveClock({ showDate = false }: { showDate?: boolean }) {
+  const [time, setTime] = useState('');
+  const timeZone = useSettingsStore((s) => s.timeZone);
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      if (timeZone === 'UTC') {
+        if (showDate) {
+          const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '.');
+          const timeStr = now.toISOString().slice(11, 19);
+          setTime(`${dateStr} ${timeStr} UTC`);
+        } else {
+          setTime(now.toISOString().slice(11, 19) + ' UTC');
+        }
+      } else {
+        if (showDate) {
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const timeStr = now.toTimeString().slice(0, 8);
+          setTime(`${year}.${month}.${day} ${timeStr} LCL`);
+        } else {
+          setTime(now.toTimeString().slice(0, 8) + ' LCL');
+        }
+      }
+    };
+    
+    update(); // Initial set
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [showDate, timeZone]);
+
+  if (!mounted) return <span suppressHydrationWarning>{showDate ? '0000.00.00 00:00:00 UTC' : '00:00:00 UTC'}</span>;
+  return <span>{time}</span>;
+}
+
+
+function TargetLabel() {
+  const cameraMode = useCelestialStore((s) => s.cameraMode);
+  const focusedBodyId = useCelestialStore((s) => s.focusedBodyId);
+  
+  const targetName = cameraMode === 'overview' 
+    ? 'SOLAR SYSTEM' 
+    : (CELESTIAL_BODIES[focusedBodyId]?.displayName || 'UNKNOWN').toUpperCase();
+
+  return (
+    <div className="text-xs crt-text-dim tracking-widest opacity-70 uppercase">
+      ◇ TARGET: {targetName}
+    </div>
+  );
 }

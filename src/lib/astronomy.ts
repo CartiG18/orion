@@ -168,3 +168,59 @@ export function getSunDirection(
 
   return result.normalize();
 }
+
+/* ─── Planet Position ─────────────────────────────────────────────────── */
+
+/**
+ * Returns a 3D vector representing the position of a body in the solar system,
+ * compressed using a square-root distance scale so that all 8 planets fit
+ * reasonably in a single scene while preserving accurate angular alignment.
+ *
+ * @param bodyId - Key into CELESTIAL_BODIES
+ * @param date   - The moment in time to query
+ * @param out    - Optional output vector
+ * @returns Compressed scene position vector
+ */
+export function getPlanetPosition(
+  bodyId: string,
+  date: FlexibleDateTime,
+  out?: THREE.Vector3,
+): THREE.Vector3 {
+  const result = out ?? new THREE.Vector3();
+  const config = getBodyConfig(bodyId);
+
+  // If there's no astronomy engine body, default to origin
+  if (!config.astronomyEngineBody || config.astronomyEngineBody === Body.Sun) {
+    return result.set(0, 0, 0);
+  }
+
+  let rawX = 0, rawY = 0, rawZ = 0;
+
+  if (config.astronomyEngineBody === Body.Moon) {
+    // Moon's position relative to Sun = Earth(Sun) + Moon(Earth)
+    const earthHV = HelioVector(Body.Earth, date);
+    const moonGV = GeoVector(Body.Moon, date, true);
+    rawX = earthHV.x + moonGV.x;
+    rawY = earthHV.y + moonGV.y;
+    rawZ = earthHV.z + moonGV.z;
+  } else {
+    // Planets
+    const hv = HelioVector(config.astronomyEngineBody, date);
+    rawX = hv.x;
+    rawY = hv.y;
+    rawZ = hv.z;
+  }
+
+  // Calculate real distance in AU
+  const realDist = Math.sqrt(rawX * rawX + rawY * rawY + rawZ * rawZ);
+  
+  // Scale factor: roughly maps Earth(1 AU) to 25 units, Neptune(30 AU) to ~137 units
+  const SCALE_FACTOR = 25;
+  const compressedDist = Math.sqrt(realDist) * SCALE_FACTOR;
+
+  // Scale raw vector to compressed distance
+  const scale = compressedDist / realDist;
+  
+  // Apply scene transform (EQJ -> Scene)
+  return eqjToScene(rawX * scale, rawY * scale, rawZ * scale, result);
+}

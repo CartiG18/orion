@@ -7,6 +7,8 @@ export const metadata: Metadata = {
     'Retro-futurist orbital monitoring terminal. Real-time planetary telemetry and satellite tracking.',
 };
 
+import ThemeSyncer from '@/components/ThemeSyncer';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -14,7 +16,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-phosphor="green" className="h-full">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ThemeSyncer />
+        {children}
+      </body>
     </html>
   );
 }

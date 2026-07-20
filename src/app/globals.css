@@ -41,6 +41,28 @@
   --glow-color: 255, 176, 0;
 }
 
+/* ── Cyan phosphor palette ──────────────────────────────────────────────── */
+[data-phosphor='cyan'] {
+  --phosphor-primary: #00ffff;
+  --phosphor-dim: #008b8b;
+  --crt-bg: #03080a;
+  --crt-bg-panel: #050a0d;
+  --crt-border: #0a404a;
+  --crt-dim: #071f25;
+  --glow-color: 0, 255, 255;
+}
+
+/* ── Monochrome phosphor palette ────────────────────────────────────────── */
+[data-phosphor='monochrome'] {
+  --phosphor-primary: #f0f0f0;
+  --phosphor-dim: #888888;
+  --crt-bg: #050505;
+  --crt-bg-panel: #080808;
+  --crt-border: #333333;
+  --crt-dim: #1a1a1a;
+  --glow-color: 240, 240, 240;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Base element styles
    ═══════════════════════════════════════════════════════════════════════════ */
