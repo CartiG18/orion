@@ -6,21 +6,19 @@
 
 ---
 
-## Current Status: Phase 0 — Shell + Theme + Boot Sequence
+## Features
 
-This phase establishes:
-
-- **Project scaffolding** — Next.js 16 (App Router), TypeScript, Tailwind CSS v4
-- **CRT theme system** — CSS custom properties for phosphor-green / amber palettes,
-  scanline overlay, vignette, glow/flicker utility classes
-- **Boot sequence** — Full-screen typewriter terminal animation with skip support
-- **Dashboard shell** — Placeholder 3-column layout proving the grid + theme work
-
-### Upcoming Phases
-
-- **Phase 1** — 3D planet rendering (Three.js / React Three Fiber)
-- **Phase 2** — Live satellite tracking + orbital data overlays
-- **Phase 3** — Telemetry panels, comms log, interactive controls
+- **Immersive Retro UI** — Full-screen CRT scanline overlays, screen curvature effects, phosphor glow, and CSS-based UI flicker.
+- **Boot Sequence** — Typewriter-style terminal initialization sequence on startup (can be skipped via click).
+- **Mathematical Solar System Model** — Calculates real-time planet positions and orientations based on Keplerian orbital elements and the J2000 epoch.
+- **Interactive 3D Engine** — Built with Three.js and React Three Fiber.
+  - **Overview Mode**: A zoomed-out view of the entire solar system featuring orbital elliptical paths.
+  - **Focus Mode**: Click any planet to smoothly fly in and lock onto it.
+  - **Click-and-Drag**: Smooth orbital camera controls.
+- **Live Telemetry & Tracking** — Calculates Right Ascension and Declination for celestial bodies, updating seamlessly in the UI.
+- **Configuration Hub** — Persistent settings menu (saved via Zustand and LocalStorage).
+  - **Themes**: Phosphor Green, Phosphor Amber, Cyanotype, and High-Contrast Monochrome.
+  - **Time Synchronization**: Toggle between Universal Coordinated Time (UTC) and Local System Time.
 
 ---
 
@@ -46,18 +44,7 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) — you'll see the boot sequence
-play, then transition into the placeholder dashboard.
-
-### Switching Phosphor Palette
-
-The theme supports green (default) and amber palettes. To test amber, open your
-browser DevTools and change the attribute on `<html>`:
-
-```
-data-phosphor="amber"
-```
-
-A toggle UI will be added in a future phase.
+play, then transition into the dashboard.
 
 ---
 
@@ -66,9 +53,10 @@ A toggle UI will be added in a future phase.
 | Layer       | Technology                          |
 | ----------- | ----------------------------------- |
 | Framework   | Next.js 16 (App Router)             |
+| Engine      | Three.js + React Three Fiber        |
 | Language    | TypeScript (strict)                 |
 | Styling     | Tailwind CSS v4 + custom CSS        |
-| State       | Zustand                             |
+| State       | Zustand (with persist middleware)   |
 | Deployment  | Vercel                              |
 
 ---
@@ -78,15 +66,27 @@ A toggle UI will be added in a future phase.
 ```
 src/
 ├── app/
-│   ├── layout.tsx          # Root layout — data-phosphor attr, font, metadata
+│   ├── layout.tsx          # Root layout
 │   ├── page.tsx            # Home — renders BootGate
-│   └── globals.css         # CRT theme system (all CSS vars + effects)
+│   └── globals.css         # CRT theme system (CSS vars + effects)
 ├── components/
 │   ├── BootSequence.tsx    # Typewriter boot animation
 │   ├── BootGate.tsx        # Boot vs dashboard orchestrator
-│   └── DashboardShell.tsx  # Placeholder 3-column layout
+│   ├── DashboardShell.tsx  # Main 3-column UI grid
+│   ├── SettingsModal.tsx   # Overlay for persistent configuration
+│   └── scene/              # All Three.js / R3F components
+│       ├── CelestialViewport.tsx
+│       ├── SolarSystem.tsx
+│       ├── CelestialBody.tsx
+│       └── CameraController.tsx
+├── lib/
+│   └── astronomy.ts        # Core math & Keplerian orbital calculations
+├── data/
+│   └── celestialBodies.ts  # Planet configurations (radius, axial tilt, colors)
 └── stores/
-    └── useBootStore.ts     # Zustand — boot state
+    ├── useBootStore.ts       # Boot sequence state
+    ├── useCelestialStore.ts  # Camera and focus state
+    └── useSettingsStore.ts   # Persistent settings (theme, timezone)
 ```
 
 ---
