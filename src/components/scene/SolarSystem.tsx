@@ -46,6 +46,7 @@ function OrbitRing({ bodyId, color }: { bodyId: string; color: THREE.Color }) {
   }, [bodyId]);
 
   return (
+    // @ts-expect-error TypeScript confuses R3F <line> with SVG <line>
     <line geometry={geometry}>
       <lineBasicMaterial color={color} transparent opacity={0.15} depthWrite={false} />
     </line>
