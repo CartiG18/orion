@@ -6,6 +6,7 @@ import SettingsModal from '@/components/SettingsModal';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useCelestialStore } from '@/stores/useCelestialStore';
 import { CELESTIAL_BODIES } from '@/data/celestialBodies';
+import TargetSelector from '@/components/TargetSelector';
 
 /**
  * DashboardShell — main layout scaffold.
@@ -63,10 +64,8 @@ export default function DashboardShell() {
           <div className="flex-1 relative min-h-0">
             <CelestialViewport />
 
-            {/* HUD overlay — target label */}
-            <div className="absolute bottom-3 left-3 pointer-events-none select-none">
-              <TargetLabel />
-            </div>
+            {/* HUD overlay — target selector widget */}
+            <TargetSelector />
             <div className="absolute bottom-3 right-3 pointer-events-none select-none text-right">
               <div className="text-xs crt-text-dim tracking-widest opacity-70">
                 REAL-TIME
@@ -173,18 +172,3 @@ function LiveClock({ showDate = false }: { showDate?: boolean }) {
   return <span>{time}</span>;
 }
 
-
-function TargetLabel() {
-  const cameraMode = useCelestialStore((s) => s.cameraMode);
-  const focusedBodyId = useCelestialStore((s) => s.focusedBodyId);
-  
-  const targetName = cameraMode === 'overview' 
-    ? 'SOLAR SYSTEM' 
-    : (CELESTIAL_BODIES[focusedBodyId]?.displayName || 'UNKNOWN').toUpperCase();
-
-  return (
-    <div className="text-xs crt-text-dim tracking-widest opacity-70 uppercase">
-      ◇ TARGET: {targetName}
-    </div>
-  );
-}

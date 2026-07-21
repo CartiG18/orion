@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { getRotationAngle, getNorthPoleDirection } from '@/lib/astronomy';
 import type { CelestialBodyConfig } from '@/data/celestialBodies';
 import GraticuleGlobe from '@/components/scene/GraticuleGlobe';
+import Satellites from '@/components/scene/Satellites';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    CelestialBody — Wireframe globe with real-time astronomical rotation
@@ -86,6 +87,8 @@ export default function CelestialBody({ config, color }: CelestialBodyProps) {
         <lineSegments geometry={equatorGeometry}>
           <lineBasicMaterial color={color} transparent opacity={0.7} depthWrite={false} />
         </lineSegments>
+
+        {config.id === 'earth' && <Satellites color={color} />}
       </group>
     </group>
   );
