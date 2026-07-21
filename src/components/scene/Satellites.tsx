@@ -49,14 +49,12 @@ function Trace({ satrec, color }: { satrec: any; color: THREE.Color }) {
         <bufferAttribute
           attach="attributes-position"
           count={TRACE_STEPS}
-          array={points}
-          itemSize={3}
+          args={[points, 3]}
         />
         <bufferAttribute
           attach="attributes-color"
           count={TRACE_STEPS}
-          array={colors}
-          itemSize={3}
+          args={[colors, 3]}
         />
       </bufferGeometry>
       <lineBasicMaterial vertexColors transparent opacity={0.6} depthWrite={false} blending={THREE.AdditiveBlending} />
