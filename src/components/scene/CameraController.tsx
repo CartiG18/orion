@@ -5,12 +5,31 @@ import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useCelestialStore } from '@/stores/useCelestialStore';
 import { getPlanetPosition } from '@/lib/astronomy';
+import { CELESTIAL_BODIES } from '@/data/celestialBodies';
 
-const MIN_FOCUS_RADIUS = 2;
-const MAX_FOCUS_RADIUS = 20;
-const DEFAULT_OVERVIEW_RADIUS = 120;
-const MIN_OVERVIEW_RADIUS = 30;
-const MAX_OVERVIEW_RADIUS = 300;
+const DEFAULT_OVERVIEW_RADIUS = 180;
+
+function getCameraBounds(bodyId: string) {
+  const config = CELESTIAL_BODIES[bodyId];
+  if (!config) return null;
+
+  const parentId = config.parentId || bodyId;
+  const parentConfig = CELESTIAL_BODIES[parentId];
+
+  const baseRadius = config.sceneRadius;
+  const systemBaseRadius = parentConfig.sceneRadius;
+
+  // Scale bounds relative to the body's radius
+  // This ensures the auto-fit framing adapts dynamically to any planet size (e.g. Jupiter)
+  return {
+    MIN_FOCUS_RADIUS: Math.max(0.5, baseRadius * 1.33),
+    MAX_FOCUS_RADIUS: Math.max(1.0, baseRadius * 5.33),
+    MIN_SYSTEM_RADIUS: Math.max(1.0, baseRadius * 5.33),
+    MAX_SYSTEM_RADIUS: systemBaseRadius * 16.66,
+    MIN_OVERVIEW_RADIUS: systemBaseRadius * 16.66,
+    MAX_OVERVIEW_RADIUS: 300,
+  };
+}
 
 /**
  * Custom Camera Controller
@@ -24,8 +43,11 @@ export default function CameraController() {
   const setCameraMode = useCelestialStore((s) => s.setCameraMode);
   const focusedBodyId = useCelestialStore((s) => s.focusedBodyId);
 
+  const setFocusedBody = useCelestialStore((s) => s.setFocusedBody);
+
   // Maintain separate spherical states for each mode
   const focusSpherical = useRef(new THREE.Spherical(6, Math.PI / 3, Math.PI / 4));
+  const systemSpherical = useRef(new THREE.Spherical(12, Math.PI / 3, Math.PI / 4));
   const overviewSpherical = useRef(new THREE.Spherical(DEFAULT_OVERVIEW_RADIUS, Math.PI / 3, Math.PI / 4));
   
   // Current actual values being smoothed
@@ -61,7 +83,10 @@ export default function CameraController() {
       const mode = useCelestialStore.getState().cameraMode;
       const rotateSpeed = 0.005;
       
-      const spherical = mode === 'overview' ? overviewSpherical.current : focusSpherical.current;
+      const spherical = 
+        mode === 'overview' ? overviewSpherical.current : 
+        mode === 'system' ? systemSpherical.current : 
+        focusSpherical.current;
       
       spherical.theta -= deltaX * rotateSpeed;
       spherical.phi -= deltaY * rotateSpeed;
@@ -77,29 +102,72 @@ export default function CameraController() {
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault(); 
-      const mode = useCelestialStore.getState().cameraMode;
+      const state = useCelestialStore.getState();
+      const mode = state.cameraMode;
+      const currentFocusedId = state.focusedBodyId;
       
+      const bounds = getCameraBounds(currentFocusedId);
+      if (!bounds) return;
+
       if (mode === 'focus') {
-        const zoomSpeed = 0.02;
+        const zoomSpeed = 0.02 * (bounds.MAX_FOCUS_RADIUS / 8); // Scale zoom speed for larger planets
         focusSpherical.current.radius += e.deltaY * zoomSpeed;
         
-        if (focusSpherical.current.radius < MIN_FOCUS_RADIUS) {
-          focusSpherical.current.radius = MIN_FOCUS_RADIUS;
-        } else if (focusSpherical.current.radius > MAX_FOCUS_RADIUS) {
-          focusSpherical.current.radius = MAX_FOCUS_RADIUS; 
+        if (focusSpherical.current.radius < bounds.MIN_FOCUS_RADIUS) {
+          focusSpherical.current.radius = bounds.MIN_FOCUS_RADIUS;
+        } else if (focusSpherical.current.radius > bounds.MAX_FOCUS_RADIUS) {
+          focusSpherical.current.radius = bounds.MAX_FOCUS_RADIUS; 
           
-          overviewSpherical.current.theta = focusSpherical.current.theta;
-          overviewSpherical.current.phi = focusSpherical.current.phi;
+          systemSpherical.current.theta = focusSpherical.current.theta;
+          systemSpherical.current.phi = focusSpherical.current.phi;
+          
+          const config = CELESTIAL_BODIES[currentFocusedId];
+          if (config.parentId) {
+            setFocusedBody(config.parentId);
+            const parentBounds = getCameraBounds(config.parentId);
+            systemSpherical.current.radius = parentBounds ? parentBounds.MIN_SYSTEM_RADIUS : bounds.MIN_SYSTEM_RADIUS;
+          } else {
+            systemSpherical.current.radius = bounds.MIN_SYSTEM_RADIUS;
+          }
+          
+          setCameraMode('system');
+        }
+      } else if (mode === 'system') {
+        const zoomSpeed = 0.05 * (bounds.MAX_SYSTEM_RADIUS / 25);
+        systemSpherical.current.radius += e.deltaY * zoomSpeed;
+        
+        if (systemSpherical.current.radius < bounds.MIN_SYSTEM_RADIUS) {
+          systemSpherical.current.radius = bounds.MIN_SYSTEM_RADIUS;
+          
+          focusSpherical.current.theta = systemSpherical.current.theta;
+          focusSpherical.current.phi = systemSpherical.current.phi;
+          focusSpherical.current.radius = bounds.MAX_FOCUS_RADIUS;
+          
+          setCameraMode('focus');
+        } else if (systemSpherical.current.radius > bounds.MAX_SYSTEM_RADIUS) {
+          systemSpherical.current.radius = bounds.MAX_SYSTEM_RADIUS;
+          
+          overviewSpherical.current.theta = systemSpherical.current.theta;
+          overviewSpherical.current.phi = systemSpherical.current.phi;
+          overviewSpherical.current.radius = bounds.MIN_OVERVIEW_RADIUS;
           
           setCameraMode('overview');
         }
       } else {
         const zoomSpeed = 0.15;
         overviewSpherical.current.radius += e.deltaY * zoomSpeed;
-        overviewSpherical.current.radius = Math.max(
-          MIN_OVERVIEW_RADIUS, 
-          Math.min(MAX_OVERVIEW_RADIUS, overviewSpherical.current.radius)
-        );
+        
+        if (overviewSpherical.current.radius < bounds.MIN_OVERVIEW_RADIUS) {
+          overviewSpherical.current.radius = bounds.MIN_OVERVIEW_RADIUS;
+          
+          systemSpherical.current.theta = overviewSpherical.current.theta;
+          systemSpherical.current.phi = overviewSpherical.current.phi;
+          systemSpherical.current.radius = bounds.MAX_SYSTEM_RADIUS;
+          
+          setCameraMode('system');
+        } else if (overviewSpherical.current.radius > bounds.MAX_OVERVIEW_RADIUS) {
+          overviewSpherical.current.radius = bounds.MAX_OVERVIEW_RADIUS;
+        }
       }
     };
 
@@ -117,16 +185,23 @@ export default function CameraController() {
       window.removeEventListener('pointercancel', onPointerUp);
       el.removeEventListener('wheel', onWheel);
     };
-  }, [gl, setCameraMode]);
+  }, [gl, setCameraMode, setFocusedBody]);
 
   // Listen for mode changes that weren't triggered by wheel (e.g. clicking a planet)
-  // to sync the focus spherical to the overview's angle for a smooth swoop-in.
+  // to sync the focus/system spherical to the overview's angle for a smooth swoop-in.
   useEffect(() => {
+    const bounds = getCameraBounds(focusedBodyId);
+    if (!bounds) return;
+
     if (cameraMode === 'focus') {
       focusSpherical.current.theta = overviewSpherical.current.theta;
       focusSpherical.current.phi = overviewSpherical.current.phi;
-      // Reset radius to a nice viewing distance
-      focusSpherical.current.radius = 6; 
+      // Reset radius to a nice viewing distance dynamically scaled
+      focusSpherical.current.radius = (bounds.MIN_FOCUS_RADIUS + bounds.MAX_FOCUS_RADIUS) / 2; 
+    } else if (cameraMode === 'system') {
+      systemSpherical.current.theta = overviewSpherical.current.theta;
+      systemSpherical.current.phi = overviewSpherical.current.phi;
+      systemSpherical.current.radius = (bounds.MIN_SYSTEM_RADIUS + bounds.MAX_SYSTEM_RADIUS) / 2;
     }
   }, [cameraMode, focusedBodyId]);
 
@@ -135,6 +210,15 @@ export default function CameraController() {
     if (cameraMode === 'overview') {
       targetLookAt.current.set(0, 0, 0); // Sun
       targetCamPos.current.setFromSpherical(overviewSpherical.current);
+    } else if (cameraMode === 'system') {
+      // System mode: target the parent body (or self if it has no parent)
+      const config = CELESTIAL_BODIES[focusedBodyId];
+      if (config) {
+        const targetId = config.parentId || focusedBodyId;
+        getPlanetPosition(targetId, new Date(), targetLookAt.current);
+      }
+      const offset = new THREE.Vector3().setFromSpherical(systemSpherical.current);
+      targetCamPos.current.copy(targetLookAt.current).add(offset);
     } else {
       // Focus mode
       getPlanetPosition(focusedBodyId, new Date(), targetLookAt.current);

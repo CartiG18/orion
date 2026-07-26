@@ -1,14 +1,7 @@
 'use client';
 
-import { useSettingsStore, ThemeColor, TimeZone } from '@/stores/useSettingsStore';
+import { useSettingsStore, TimeZone } from '@/stores/useSettingsStore';
 import { useEffect, useState } from 'react';
-
-const THEMES: { id: ThemeColor; label: string }[] = [
-  { id: 'green', label: 'PHOSPHOR GREEN (DEFAULT)' },
-  { id: 'amber', label: 'PHOSPHOR AMBER' },
-  { id: 'cyan', label: 'CYANOTYPE' },
-  { id: 'monochrome', label: 'HIGH-CONTRAST MONOCHROME' },
-];
 
 const TIMEZONES: { id: TimeZone; label: string }[] = [
   { id: 'UTC', label: 'UNIVERSAL COORDINATED (UTC)' },
@@ -17,7 +10,7 @@ const TIMEZONES: { id: TimeZone; label: string }[] = [
 
 export default function SettingsModal() {
   const isOpen = useSettingsStore((s) => s.isSettingsOpen);
-  const { theme, setTheme, timeZone, setTimeZone, setIsSettingsOpen } = useSettingsStore();
+  const { timeZone, setTimeZone, setIsSettingsOpen } = useSettingsStore();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -46,24 +39,6 @@ export default function SettingsModal() {
         {/* Content */}
         <div className="p-6 flex flex-col gap-8">
           
-          {/* Theme Selection */}
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-bold tracking-widest crt-glow">◇ DISPLAY THEME</h2>
-            <div className="flex flex-col gap-2 pl-4">
-              {THEMES.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTheme(t.id)}
-                  className={`text-left text-xs tracking-widest py-1 px-2 hover:bg-white/5 transition-colors cursor-pointer ${
-                    theme === t.id ? 'crt-glow font-bold before:content-[\'>_\'] before:-ml-4 before:absolute relative' : 'crt-text-dim'
-                  }`}
-                >
-                  [{t.id.toUpperCase()}] {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Timezone Selection */}
           <div className="flex flex-col gap-3">
             <h2 className="text-sm font-bold tracking-widest crt-glow">◇ TIME SYNCHRONIZATION</h2>
@@ -88,7 +63,7 @@ export default function SettingsModal() {
         <div className="p-4 border-t flex justify-end" style={{ borderColor: 'var(--crt-border)' }}>
           <button 
             onClick={() => setIsSettingsOpen(false)}
-            className="text-xs tracking-widest crt-glow hover:bg-white/5 px-4 py-2 crt-border cursor-pointer"
+            className="text-xs tracking-widest crt-glow-interactive hover:bg-white/5 px-4 py-2 crt-border cursor-pointer"
           >
             [ CLOSE ]
           </button>

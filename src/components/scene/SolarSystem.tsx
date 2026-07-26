@@ -9,6 +9,8 @@ import { getPlanetPosition } from '@/lib/astronomy';
 import CelestialBody from '@/components/scene/CelestialBody';
 import PlanetLabel from '@/components/scene/PlanetLabel';
 import SunMarker from '@/components/scene/SunMarker';
+import TelemetryHUD from '@/components/scene/TelemetryHUD';
+import LockOnReticle from '@/components/scene/LockOnReticle';
 
 const ORBITAL_PERIODS: Record<string, number> = {
   mercury: 88,
@@ -22,21 +24,31 @@ const ORBITAL_PERIODS: Record<string, number> = {
   neptune: 60182,
 };
 
-function OrbitRing({ bodyId, color }: { bodyId: string; color: THREE.Color }) {
+function OrbitRing({ bodyId, color, dimmed }: { bodyId: string; color: THREE.Color, dimmed?: boolean }) {
   const geometry = useMemo(() => {
     const period = ORBITAL_PERIODS[bodyId] || 365.25;
     const segments = 128;
     const positions: number[] = [];
     
     // Sample a full orbit starting from J2000 or current date
-    const now = Date.now();
+    const now = new Date();
     const msPerDay = 24 * 60 * 60 * 1000;
+    
+    // For the moon, we want the ring to be centered on Earth's *current* position, 
+    // rather than dragging across space as Earth moves over the 27-day trace.
+    const currentEarthPos = bodyId === 'moon' ? getPlanetPosition('earth', now) : null;
 
     for (let i = 0; i <= segments; i++) {
       const fraction = i / segments;
-      const date = new Date(now + fraction * period * msPerDay);
-      // getPlanetPosition handles distance compression and coordinate mapping
+      const date = new Date(now.getTime() + fraction * period * msPerDay);
       const pos = getPlanetPosition(bodyId, date);
+      
+      if (bodyId === 'moon' && currentEarthPos) {
+        const futureEarthPos = getPlanetPosition('earth', date);
+        // Extract Moon's relative offset and anchor it to Earth's current position
+        pos.sub(futureEarthPos).add(currentEarthPos);
+      }
+      
       positions.push(pos.x, pos.y, pos.z);
     }
     
@@ -48,17 +60,18 @@ function OrbitRing({ bodyId, color }: { bodyId: string; color: THREE.Color }) {
   return (
     // @ts-expect-error TypeScript confuses R3F <line> with SVG <line>
     <line geometry={geometry}>
-      <lineBasicMaterial color={color} transparent opacity={0.15} depthWrite={false} />
+      <lineBasicMaterial color={color} transparent opacity={dimmed ? 0.03 : 0.15} depthWrite={false} />
     </line>
   );
 }
 
 interface PlanetNodeProps {
   bodyId: string;
-  color: THREE.Color;
+  structureColor: THREE.Color;
+  interactiveColor: THREE.Color;
 }
 
-function PlanetNode({ bodyId, color }: PlanetNodeProps) {
+function PlanetNode({ bodyId, structureColor, interactiveColor }: PlanetNodeProps) {
   const groupRef = useRef<THREE.Group>(null);
   const config = CELESTIAL_BODIES[bodyId];
   
@@ -83,29 +96,42 @@ function PlanetNode({ bodyId, color }: PlanetNodeProps) {
     }
   };
 
-  // Performance: hide distant bodies if not focused to save draw calls in Focus Mode.
-  const isVisible = cameraMode === 'overview' || isFocused;
+  // Performance: hide distant bodies if not in system/focus mode
+  // In 'focus' or 'system' modes, we render the body if it belongs to the same family 
+  // as the focused body (e.g. Earth + Moon render together regardless of which is focused)
+  const focusedConfig = CELESTIAL_BODIES[focusedBodyId];
+  const focusedParent = focusedConfig?.parentId || focusedBodyId;
+  const thisParent = config?.parentId || bodyId;
+  
+  const isFamily = focusedParent === thisParent;
+  const isOverview = cameraMode === 'overview';
+  
+  // If not overview and not in the focused family, the planet is dimmed (backgrounded)
+  const dimmed = !isOverview && !isFamily;
 
-  if (!isVisible) return null;
+  const scale = dimmed ? 0.3 : 1;
 
   return (
     <>
       {/* The orbit path centered at the Sun */}
-      <OrbitRing bodyId={bodyId} color={color} />
+      <OrbitRing bodyId={bodyId} color={structureColor} dimmed={dimmed} />
 
-      <group ref={groupRef} onClick={handleClick}>
-        <CelestialBody config={config} color={color} />
-        <PlanetLabel id={bodyId} name={config.displayName} onClick={() => setFocusedBody(bodyId)} />
+      <group ref={groupRef} onClick={handleClick} scale={scale}>
+        <CelestialBody config={config} color={structureColor} dimmed={dimmed} />
+        <PlanetLabel id={bodyId} name={config.displayName} onClick={() => setFocusedBody(bodyId)} dimmed={dimmed} interactiveColor={interactiveColor} />
+        {isFocused && <TelemetryHUD bodyId={bodyId} />}
+        <LockOnReticle bodyId={bodyId} />
       </group>
     </>
   );
 }
 
 interface SolarSystemProps {
-  color: THREE.Color;
+  structureColor: THREE.Color;
+  interactiveColor: THREE.Color;
 }
 
-export default function SolarSystem({ color }: SolarSystemProps) {
+export default function SolarSystem({ structureColor, interactiveColor }: SolarSystemProps) {
   const bodyIds = Object.keys(CELESTIAL_BODIES);
 
   return (
@@ -113,14 +139,14 @@ export default function SolarSystem({ color }: SolarSystemProps) {
       {/* The Central Sun */}
       <mesh>
         <sphereGeometry args={[2.5, 32, 32]} />
-        <meshBasicMaterial color={color} transparent opacity={0.9} wireframe />
+        <meshBasicMaterial color={structureColor} transparent opacity={0.9} wireframe />
       </mesh>
       
-      <pointLight color={color} intensity={1.5} distance={200} decay={1.5} />
+      <pointLight color={structureColor} intensity={1.5} distance={200} decay={1.5} />
 
       {/* Planets and Moon */}
       {bodyIds.map((id) => (
-        <PlanetNode key={id} bodyId={id} color={color} />
+        <PlanetNode key={id} bodyId={id} structureColor={structureColor} interactiveColor={interactiveColor} />
       ))}
     </group>
   );

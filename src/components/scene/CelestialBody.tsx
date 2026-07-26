@@ -22,6 +22,7 @@ import Satellites from '@/components/scene/Satellites';
 interface CelestialBodyProps {
   config: CelestialBodyConfig;
   color: THREE.Color;
+  dimmed?: boolean;
 }
 
 /** Reusable temporaries to avoid per-frame allocations */
@@ -29,7 +30,7 @@ const _northPole = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
 const _quaternion = new THREE.Quaternion();
 
-export default function CelestialBody({ config, color }: CelestialBodyProps) {
+export default function CelestialBody({ config, color, dimmed }: CelestialBodyProps) {
   const axisGroupRef = useRef<THREE.Group>(null);
   const spinGroupRef = useRef<THREE.Group>(null);
   const lastAxisUpdateRef = useRef(0);
@@ -81,14 +82,16 @@ export default function CelestialBody({ config, color }: CelestialBodyProps) {
     <group ref={axisGroupRef}>
       <group ref={spinGroupRef}>
         {/* Main graticule grid */}
-        <GraticuleGlobe radius={config.sceneRadius} color={color} opacity={0.35} />
+        <GraticuleGlobe radius={config.sceneRadius} color={color} opacity={dimmed ? 0.05 : 0.35} />
 
-        {/* Brighter equator ring */}
-        <lineSegments geometry={equatorGeometry}>
-          <lineBasicMaterial color={color} transparent opacity={0.7} depthWrite={false} />
-        </lineSegments>
+        {/* Brighter equator ring (hide if dimmed to reduce clutter) */}
+        {!dimmed && (
+          <lineSegments geometry={equatorGeometry}>
+            <lineBasicMaterial color={color} transparent opacity={0.7} depthWrite={false} />
+          </lineSegments>
+        )}
 
-        {config.id === 'earth' && <Satellites color={color} />}
+        {!dimmed && config.id === 'earth' && <Satellites color={color} />}
       </group>
     </group>
   );

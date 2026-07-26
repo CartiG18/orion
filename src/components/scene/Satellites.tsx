@@ -6,9 +6,9 @@ import * as THREE from 'three';
 import { useSatellites, getSatellitePositionEcef, TrackedSatellite } from '@/lib/satelliteTracking';
 import { useCelestialStore } from '@/stores/useCelestialStore';
 
-// 15 minutes of trace, 30 points (one every 30s)
-const TRACE_STEPS = 30;
-const TRACE_INTERVAL_MS = 30000; 
+// 15 minutes of trace, 15 points (one every 60s) to maintain performance with ~100 satellites
+const TRACE_STEPS = 15;
+const TRACE_INTERVAL_MS = 60000; 
 
 function Trace({ satrec, color }: { satrec: any; color: THREE.Color }) {
   const lineRef = useRef<any>(null);
@@ -83,9 +83,11 @@ function SatelliteNode({ sat, color }: { sat: TrackedSatellite; color: THREE.Col
 
 export default function Satellites({ color }: { color: THREE.Color }) {
   const focusedBodyId = useCelestialStore((s) => s.focusedBodyId);
+  const cameraMode = useCelestialStore((s) => s.cameraMode);
   const satellites = useSatellites();
 
-  if (focusedBodyId !== 'earth') return null;
+  // VISIBILITY RULE: satellites only render when Earth is focused at the tightest zoom level
+  if (focusedBodyId !== 'earth' || cameraMode !== 'focus') return null;
 
   return (
     <group>

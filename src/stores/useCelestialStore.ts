@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type CameraMode = 'focus' | 'overview';
+export type CameraMode = 'focus' | 'system' | 'overview';
 
 interface CelestialState {
   /** ID of the currently focused celestial body (key into CELESTIAL_BODIES) */

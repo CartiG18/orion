@@ -79,7 +79,7 @@ export default function TargetSelector() {
       className="absolute top-4 left-4 z-50 flex flex-col pointer-events-auto font-mono text-xs tracking-widest uppercase select-none"
     >
       <div
-        className="flex items-center crt-text-dim cursor-pointer hover:crt-glow transition-colors bg-black/60 px-3 py-1.5 crt-border"
+        className="flex items-center crt-text-dim cursor-pointer hover:crt-glow-interactive transition-colors bg-black/60 px-3 py-1.5 crt-border"
         onClick={() => {
           if (!isOpen) {
             setIsOpen(true);
@@ -91,7 +91,7 @@ export default function TargetSelector() {
           <input
             ref={inputRef}
             type="text"
-            className="bg-transparent border-none outline-none crt-glow font-mono uppercase w-32 p-0 m-0"
+            className="bg-transparent border-none outline-none crt-glow-interactive font-mono uppercase w-32 p-0 m-0"
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value.toUpperCase());
@@ -101,7 +101,7 @@ export default function TargetSelector() {
             placeholder={currentTargetName}
           />
         ) : (
-          <span className="crt-glow w-32 text-left inline-block truncate">{currentTargetName}</span>
+          <span className="crt-glow-interactive w-32 text-left inline-block truncate">{currentTargetName}</span>
         )}
         <span className="ml-2">]</span>
       </div>
@@ -114,7 +114,7 @@ export default function TargetSelector() {
                 key={target.id}
                 className={`px-3 py-2 cursor-pointer transition-colors ${
                   idx === selectedIndex
-                    ? 'bg-white/20 crt-glow text-white'
+                    ? 'bg-white/20 crt-glow-interactive text-white'
                     : 'crt-text-dim hover:bg-white/10 hover:text-white'
                 }`}
                 onClick={() => handleSelect(target.id)}

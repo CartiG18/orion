@@ -3,10 +3,14 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
 import SettingsModal from '@/components/SettingsModal';
+import LiveClock from '@/components/LiveClock';
+import StatusIndicator from '@/components/panels/StatusIndicator';
+import AsteroidTracker from '@/components/panels/AsteroidTracker';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useCelestialStore } from '@/stores/useCelestialStore';
 import { CELESTIAL_BODIES } from '@/data/celestialBodies';
 import TargetSelector from '@/components/TargetSelector';
+import { audioManager } from '@/lib/audioManager';
 
 /**
  * DashboardShell — main layout scaffold.
@@ -21,8 +25,39 @@ const CelestialViewport = dynamic(
 );
 
 export default function DashboardShell() {
+  const [isMuted, setIsMuted] = useState(false);
+  const [isGlitching, setIsGlitching] = useState(false);
+
+  // Initialize audio on first interaction
+  useEffect(() => {
+    const handleInit = () => {
+      audioManager.init();
+      window.removeEventListener('pointerdown', handleInit);
+      window.removeEventListener('keydown', handleInit);
+    };
+    window.addEventListener('pointerdown', handleInit);
+    window.addEventListener('keydown', handleInit);
+    return () => {
+      window.removeEventListener('pointerdown', handleInit);
+      window.removeEventListener('keydown', handleInit);
+    };
+  }, []);
+
+  // Glitch effect loop (every 1.5 to 3 minutes)
+  useEffect(() => {
+    const glitchLoop = () => {
+      const nextDelay = 90000 + Math.random() * 90000; // 1.5 to 3 mins
+      setTimeout(() => {
+        setIsGlitching(true);
+        setTimeout(() => setIsGlitching(false), 150); // 150ms glitch duration
+        glitchLoop();
+      }, nextDelay);
+    };
+    glitchLoop();
+  }, []);
+
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className={`flex flex-col h-full w-full ${isGlitching ? 'glitch-anim' : ''}`}>
       {/* ── Top status bar ──────────────────────────────────────────────── */}
       <header
         className="crt-border flex items-center justify-between px-4 py-2 text-xs tracking-widest select-none shrink-0"
@@ -37,8 +72,17 @@ export default function DashboardShell() {
           <span className="crt-flicker">● ONLINE</span>
           <LiveClock />
           <button 
+            onClick={() => {
+              const muted = audioManager.toggleMute();
+              setIsMuted(muted);
+            }}
+            className="hover:crt-glow-interactive transition-colors cursor-pointer ml-2"
+          >
+            [ {isMuted ? 'UNMUTE' : 'MUTE'} ]
+          </button>
+          <button 
             onClick={() => useSettingsStore.getState().setIsSettingsOpen(true)}
-            className="hover:crt-glow transition-colors cursor-pointer ml-2"
+            className="hover:crt-glow-interactive transition-colors cursor-pointer ml-2"
           >
             [ CONFIG ]
           </button>
@@ -47,15 +91,9 @@ export default function DashboardShell() {
 
       {/* ── Main three-column grid ──────────────────────────────────────── */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[260px_1fr_260px] min-h-0">
-        {/* Left panel — telemetry */}
-        <aside className="hidden lg:flex flex-col crt-border" style={{ borderLeft: 'none' }}>
-          <PanelHeader label="TELEMETRY FEED" />
-          <div className="flex-1 flex items-center justify-center p-4">
-            <span className="crt-text-dim text-xs text-center leading-relaxed tracking-wide">
-              {'[ AWAITING\nDATA STREAM ]'}
-            </span>
-          </div>
-          <PanelFooter label="CH-01 // IDLE" />
+        {/* Left panel — Status Indicator */}
+        <aside className="hidden lg:flex flex-col gap-4">
+          <StatusIndicator />
         </aside>
 
         {/* Center panel — 3D celestial viewport */}
@@ -78,15 +116,9 @@ export default function DashboardShell() {
           <PanelFooter label="MODE: TRACKING" />
         </main>
 
-        {/* Right panel — comms log */}
-        <aside className="hidden lg:flex flex-col crt-border" style={{ borderRight: 'none' }}>
-          <PanelHeader label="COMMS LOG" />
-          <div className="flex-1 flex items-center justify-center p-4">
-            <span className="crt-text-dim text-xs text-center leading-relaxed tracking-wide">
-              {'[ NO ACTIVE\nTRANSMISSIONS ]'}
-            </span>
-          </div>
-          <PanelFooter label="CH-09 // MONITORING" />
+        {/* Right panel — Asteroid Tracker */}
+        <aside className="hidden lg:flex flex-col gap-4">
+          <AsteroidTracker />
         </aside>
       </div>
 
@@ -131,44 +163,4 @@ function PanelFooter({ label }: { label: string }) {
   );
 }
 
-
-function LiveClock({ showDate = false }: { showDate?: boolean }) {
-  const [time, setTime] = useState('');
-  const timeZone = useSettingsStore((s) => s.timeZone);
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    const update = () => {
-      const now = new Date();
-      if (timeZone === 'UTC') {
-        if (showDate) {
-          const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '.');
-          const timeStr = now.toISOString().slice(11, 19);
-          setTime(`${dateStr} ${timeStr} UTC`);
-        } else {
-          setTime(now.toISOString().slice(11, 19) + ' UTC');
-        }
-      } else {
-        if (showDate) {
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          const timeStr = now.toTimeString().slice(0, 8);
-          setTime(`${year}.${month}.${day} ${timeStr} LCL`);
-        } else {
-          setTime(now.toTimeString().slice(0, 8) + ' LCL');
-        }
-      }
-    };
-    
-    update(); // Initial set
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [showDate, timeZone]);
-
-  if (!mounted) return <span suppressHydrationWarning>{showDate ? '0000.00.00 00:00:00 UTC' : '00:00:00 UTC'}</span>;
-  return <span>{time}</span>;
-}
 

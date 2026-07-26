@@ -1,7 +1,8 @@
 'use client';
 
 import { Canvas } from '@react-three/fiber';
-import { usePhosphorColor } from '@/hooks/usePhosphorColor';
+import { Stars } from '@react-three/drei';
+import { useSemanticColors } from '@/hooks/useSemanticColors';
 import SolarSystem from '@/components/scene/SolarSystem';
 import CameraController from '@/components/scene/CameraController';
 
@@ -12,15 +13,21 @@ import CameraController from '@/components/scene/CameraController';
    ═══════════════════════════════════════════════════════════════════════════ */
 
 function Scene() {
-  const phosphorColor = usePhosphorColor();
+  const colors = useSemanticColors();
 
   return (
     <>
       <CameraController />
       
+      {/* Background stars */}
+      <Stars radius={150} depth={50} count={3000} factor={4} saturation={0} fade speed={0.2} />
+
       {/* We tilt the entire scene group so the Ecliptic plane is horizontal */}
       <group rotation={[23.44 * (Math.PI / 180), 0, 0]}>
-        <SolarSystem color={phosphorColor} />
+        <SolarSystem 
+          structureColor={colors.structure}
+          interactiveColor={colors.interactive}
+        />
       </group>
     </>
   );

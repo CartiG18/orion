@@ -1,13 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type ThemeColor = 'green' | 'amber' | 'cyan' | 'monochrome';
 export type TimeZone = 'UTC' | 'Local';
 
 interface SettingsState {
-  theme: ThemeColor;
-  setTheme: (theme: ThemeColor) => void;
-
   timeZone: TimeZone;
   setTimeZone: (tz: TimeZone) => void;
 
@@ -18,9 +14,6 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      theme: 'green',
-      setTheme: (theme) => set({ theme }),
-
       timeZone: 'UTC',
       setTimeZone: (timeZone) => set({ timeZone }),
 
@@ -30,7 +23,7 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'orion-settings',
       // Don't persist UI state like modal open/close
-      partialize: (state) => ({ theme: state.theme, timeZone: state.timeZone }),
+      partialize: (state) => ({ timeZone: state.timeZone }),
     }
   )
 );

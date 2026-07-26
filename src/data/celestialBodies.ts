@@ -32,6 +32,24 @@ export interface CelestialBodyConfig {
   astronomyEngineBody: Body | null;
   /** Visual radius in scene units (normalized so Earth ≈ 1.5 for good framing) */
   sceneRadius: number;
+  /** Optional ID of the parent body (e.g. 'earth' for the Moon) */
+  parentId?: string;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Planet Radius Scaling
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+export const RADIUS_SCALING_EXPONENT = 0.48;
+const EARTH_VISUAL_RADIUS = 1.5;
+const EARTH_MEAN_RADIUS_KM = 6371.0;
+
+/**
+ * Compresses planetary radius using a power-law curve.
+ * This ensures gas giants are visibly larger than terrestrials without dwarfing the scene.
+ */
+function calculateVisualRadius(meanRadiusKm: number): number {
+  return EARTH_VISUAL_RADIUS * Math.pow(meanRadiusKm / EARTH_MEAN_RADIUS_KM, RADIUS_SCALING_EXPONENT);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -47,7 +65,7 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyConfig> = {
     axialTiltDegrees: 0.034,
     orbitalPeriodDays: 87.969,
     astronomyEngineBody: Body.Mercury,
-    sceneRadius: 0.58,
+    sceneRadius: calculateVisualRadius(2_439.7),
   },
   venus: {
     id: 'venus',
@@ -57,7 +75,7 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyConfig> = {
     axialTiltDegrees: 177.36,
     orbitalPeriodDays: 224.701,
     astronomyEngineBody: Body.Venus,
-    sceneRadius: 1.44,
+    sceneRadius: calculateVisualRadius(6_051.8),
   },
   earth: {
     id: 'earth',
@@ -67,7 +85,7 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyConfig> = {
     axialTiltDegrees: 23.44,
     orbitalPeriodDays: 365.256,
     astronomyEngineBody: Body.Earth,
-    sceneRadius: 1.5,
+    sceneRadius: EARTH_VISUAL_RADIUS,
   },
   moon: {
     id: 'moon',
@@ -77,7 +95,8 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyConfig> = {
     axialTiltDegrees: 6.68,
     orbitalPeriodDays: 27.322,
     astronomyEngineBody: Body.Moon,
-    sceneRadius: 0.41,
+    sceneRadius: calculateVisualRadius(1_737.4),
+    parentId: 'earth',
   },
   mars: {
     id: 'mars',
@@ -87,7 +106,7 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyConfig> = {
     axialTiltDegrees: 25.19,
     orbitalPeriodDays: 686.971,
     astronomyEngineBody: Body.Mars,
-    sceneRadius: 1.02,
+    sceneRadius: calculateVisualRadius(3_389.5),
   },
   jupiter: {
     id: 'jupiter',
@@ -97,7 +116,7 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyConfig> = {
     axialTiltDegrees: 3.13,
     orbitalPeriodDays: 4_332.59,
     astronomyEngineBody: Body.Jupiter,
-    sceneRadius: 1.5, // capped for scene framing — real scale would dwarf everything
+    sceneRadius: calculateVisualRadius(69_911), 
   },
   saturn: {
     id: 'saturn',
@@ -107,7 +126,7 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyConfig> = {
     axialTiltDegrees: 26.73,
     orbitalPeriodDays: 10_759.22,
     astronomyEngineBody: Body.Saturn,
-    sceneRadius: 1.5,
+    sceneRadius: calculateVisualRadius(58_232),
   },
   uranus: {
     id: 'uranus',
@@ -117,7 +136,7 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyConfig> = {
     axialTiltDegrees: 97.77,
     orbitalPeriodDays: 30_688.5,
     astronomyEngineBody: Body.Uranus,
-    sceneRadius: 1.5,
+    sceneRadius: calculateVisualRadius(25_362),
   },
   neptune: {
     id: 'neptune',
@@ -127,7 +146,7 @@ export const CELESTIAL_BODIES: Record<string, CelestialBodyConfig> = {
     axialTiltDegrees: 28.32,
     orbitalPeriodDays: 60_182,
     astronomyEngineBody: Body.Neptune,
-    sceneRadius: 1.5,
+    sceneRadius: calculateVisualRadius(24_622),
   },
 };
 
@@ -138,4 +157,19 @@ export function getBodyConfig(id: string): CelestialBodyConfig {
     throw new Error(`Unknown celestial body: "${id}"`);
   }
   return config;
+}
+
+/** 
+ * Returns an array of body IDs that belong to the same planetary system.
+ * If the body is a moon, it returns [parent, moon, other_moons...].
+ * If the body is a planet, it returns [planet, moons...].
+ */
+export function getSystemFamily(bodyId: string): string[] {
+  const config = getBodyConfig(bodyId);
+  const parentId = config.parentId || bodyId;
+  
+  // Find all bodies that are either the parent itself, or have this parentId
+  return Object.values(CELESTIAL_BODIES)
+    .filter(b => b.id === parentId || b.parentId === parentId)
+    .map(b => b.id);
 }
