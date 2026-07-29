@@ -7,6 +7,8 @@ import { getRotationAngle, getNorthPoleDirection } from '@/lib/astronomy';
 import type { CelestialBodyConfig } from '@/data/celestialBodies';
 import GraticuleGlobe from '@/components/scene/GraticuleGlobe';
 import Satellites from '@/components/scene/Satellites';
+import EarthContinents from '@/components/scene/EarthContinents';
+import LocationMarker from '@/components/scene/LocationMarker';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    CelestialBody — Wireframe globe with real-time astronomical rotation
@@ -60,7 +62,7 @@ export default function CelestialBody({ config, color, dimmed }: CelestialBodyPr
     const nowMs = now.getTime();
 
     // ── Axis orientation (recalculate every 10 seconds — pole barely moves) ──
-    if (nowMs - lastAxisUpdateRef.current > 10_000) {
+    if (!dimmed && nowMs - lastAxisUpdateRef.current > 10_000) {
       lastAxisUpdateRef.current = nowMs;
 
       getNorthPoleDirection(config.id, now, _northPole);
@@ -71,12 +73,24 @@ export default function CelestialBody({ config, color, dimmed }: CelestialBodyPr
     }
 
     // ── Spin rotation (every frame for smooth motion) ──
-    const spinDegrees = getRotationAngle(config.id, now);
-    // Convert to radians — spin is the angular position of the prime meridian
-    // Apply as Y-rotation on the inner group (which is already tilted by the outer group)
-    // Positive Y rotation in Three.js correctly matches increasing Right Ascension (Eastward rotation)
-    spinGroupRef.current.rotation.y = (spinDegrees * Math.PI) / 180;
+    if (!dimmed) {
+      const spinDegrees = getRotationAngle(config.id, now);
+      // Convert to radians — spin is the angular position of the prime meridian
+      // Apply as Y-rotation on the inner group (which is already tilted by the outer group)
+      // Positive Y rotation in Three.js correctly matches increasing Right Ascension (Eastward rotation)
+      spinGroupRef.current.rotation.y = (spinDegrees * Math.PI) / 180;
+    }
   });
+
+  if (dimmed) {
+    // Performance: Render low-poly sphere for background planets
+    return (
+      <mesh>
+        <sphereGeometry args={[config.sceneRadius, 16, 16]} />
+        <meshBasicMaterial color={color} wireframe transparent opacity={0.15} />
+      </mesh>
+    );
+  }
 
   return (
     <group ref={axisGroupRef}>
@@ -92,6 +106,24 @@ export default function CelestialBody({ config, color, dimmed }: CelestialBodyPr
         )}
 
         {!dimmed && config.id === 'earth' && <Satellites color={color} />}
+        {!dimmed && config.id === 'earth' && (
+          <EarthContinents 
+            radius={config.sceneRadius} 
+            color={new THREE.Color('#ffb000')} 
+            opacity={0.8} 
+          />
+        )}
+        
+        {/* User Location Marker (Los Angeles, CA) */}
+        {!dimmed && config.id === 'earth' && (
+          <LocationMarker 
+            lat={34.0522} 
+            lon={-118.2437} 
+            radius={config.sceneRadius} 
+            color="#ff4444" 
+            label="Los Angeles" 
+          />
+        )}
       </group>
     </group>
   );

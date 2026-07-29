@@ -81,12 +81,28 @@ function PlanetNode({ bodyId, structureColor, interactiveColor }: PlanetNodeProp
 
   const isFocused = focusedBodyId === bodyId;
 
+  // If not overview and not in the focused family, the planet is dimmed (backgrounded)
+  const isOverview = cameraMode === 'overview';
+  const focusedConfig = CELESTIAL_BODIES[focusedBodyId];
+  const focusedParent = focusedConfig?.parentId || focusedBodyId;
+  const thisParent = config?.parentId || bodyId;
+  const isFamily = focusedParent === thisParent;
+  const dimmed = !isOverview && !isFamily;
+
+  const lastUpdateRef = useRef(0);
+
   // Update position every frame
   useFrame(() => {
     if (!groupRef.current) return;
+    
+    const now = Date.now();
+    // Performance: Throttle position updates to once per second for distant/dimmed bodies
+    if (dimmed && now - lastUpdateRef.current < 1000) return;
+    lastUpdateRef.current = now;
+    
     // We update position based on current time. 
     // In focus mode, the camera will track this dynamic position.
-    getPlanetPosition(bodyId, new Date(), groupRef.current.position);
+    getPlanetPosition(bodyId, new Date(now), groupRef.current.position);
   });
 
   const handleClick = (e: any) => {
@@ -96,18 +112,8 @@ function PlanetNode({ bodyId, structureColor, interactiveColor }: PlanetNodeProp
     }
   };
 
-  // Performance: hide distant bodies if not in system/focus mode
   // In 'focus' or 'system' modes, we render the body if it belongs to the same family 
   // as the focused body (e.g. Earth + Moon render together regardless of which is focused)
-  const focusedConfig = CELESTIAL_BODIES[focusedBodyId];
-  const focusedParent = focusedConfig?.parentId || focusedBodyId;
-  const thisParent = config?.parentId || bodyId;
-  
-  const isFamily = focusedParent === thisParent;
-  const isOverview = cameraMode === 'overview';
-  
-  // If not overview and not in the focused family, the planet is dimmed (backgrounded)
-  const dimmed = !isOverview && !isFamily;
 
   const scale = dimmed ? 0.3 : 1;
 

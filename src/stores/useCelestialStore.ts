@@ -12,6 +12,16 @@ interface CelestialState {
   cameraMode: CameraMode;
   /** Set the camera mode */
   setCameraMode: (mode: CameraMode) => void;
+
+  /** Visibility toggle for the floating planet telemetry HUD */
+  showTelemetry: boolean;
+  setShowTelemetry: (show: boolean) => void;
+  toggleTelemetry: () => void;
+
+  /** Set of visible satellite NORAD IDs */
+  visibleSatellites: string[];
+  toggleSatellite: (id: string) => void;
+  setVisibleSatellites: (ids: string[]) => void;
 }
 
 export const useCelestialStore = create<CelestialState>((set) => ({
@@ -20,4 +30,19 @@ export const useCelestialStore = create<CelestialState>((set) => ({
   
   cameraMode: 'focus',
   setCameraMode: (mode: CameraMode) => set({ cameraMode: mode }),
+
+  showTelemetry: true,
+  setShowTelemetry: (show: boolean) => set({ showTelemetry: show }),
+  toggleTelemetry: () => set((s) => ({ showTelemetry: !s.showTelemetry })),
+
+  visibleSatellites: [],
+  setVisibleSatellites: (ids: string[]) => set({ visibleSatellites: ids }),
+  toggleSatellite: (id: string) => set((s) => {
+    const isVisible = s.visibleSatellites.includes(id);
+    if (isVisible) {
+      return { visibleSatellites: s.visibleSatellites.filter((sid) => sid !== id) };
+    } else {
+      return { visibleSatellites: [...s.visibleSatellites, id] };
+    }
+  }),
 }));

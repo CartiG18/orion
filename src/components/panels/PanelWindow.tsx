@@ -42,7 +42,10 @@ export default function PanelWindow({ id, title, children, expandedContent }: Pa
 
   // Normal / Collapsed render in the sidebar
   return (
-    <div className="flex flex-col crt-border" style={{ borderLeft: 'none', borderRight: 'none', borderBottom: 'none' }}>
+    <div 
+      className={`flex flex-col crt-border ${isCollapsed ? '' : 'h-full flex-1 min-h-0'}`} 
+      style={{ borderLeft: 'none', borderRight: 'none', borderBottom: 'none' }}
+    >
       {/* Header */}
       <div 
         className="px-3 py-1.5 flex items-center justify-between border-b shrink-0 select-none"
@@ -69,7 +72,7 @@ export default function PanelWindow({ id, title, children, expandedContent }: Pa
       
       {/* Content */}
       {!isCollapsed && (
-        <div className="p-4 flex-1 min-h-[150px] overflow-y-auto">
+        <div className="p-4 flex-1 min-h-0 flex flex-col overflow-hidden">
           {children}
         </div>
       )}

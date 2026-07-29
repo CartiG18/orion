@@ -1,9 +1,12 @@
 'use client';
 
+import { useRef } from 'react';
+import { useThree, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
+import * as THREE from 'three';
 import { useCelestialStore } from '@/stores/useCelestialStore';
-import { CELESTIAL_BODIES } from '@/data/celestialBodies';
-import { getPlanetPosition } from '@/lib/astronomy';
+import { getBodyConfig } from '@/data/celestialBodies';
+import { HelioVector } from 'astronomy-engine';
 
 interface TelemetryHUDProps {
   bodyId: string;
@@ -11,26 +14,51 @@ interface TelemetryHUDProps {
 
 export default function TelemetryHUD({ bodyId }: TelemetryHUDProps) {
   const cameraMode = useCelestialStore((s) => s.cameraMode);
-  
-  if (cameraMode !== 'focus') return null;
-  
-  const config = CELESTIAL_BODIES[bodyId];
-  if (!config) return null;
+  const showTelemetry = useCelestialStore((s) => s.showTelemetry);
+  const { camera, size } = useThree();
+  const groupRef = useRef<THREE.Group>(null);
+  const hudRef = useRef<HTMLDivElement>(null);
+
+  const config = getBodyConfig(bodyId);
+
+  // Dynamically calculate the planet's exact screen pixel radius each frame
+  // by measuring true world distance between camera and planet center.
+  useFrame(() => {
+    if (!config || !hudRef.current || !groupRef.current || !showTelemetry) return;
+
+    const perspCam = camera as THREE.PerspectiveCamera;
+    const planetWorldPos = new THREE.Vector3();
+    groupRef.current.getWorldPosition(planetWorldPos);
+
+    // Real world distance from camera to planet center
+    const dist = camera.position.distanceTo(planetWorldPos);
+    if (dist <= 0) return;
+
+    const fovRad = (perspCam.fov * Math.PI) / 180;
+    const visibleHeight = 2 * dist * Math.tan(fovRad / 2);
+
+    // Dynamic screen pixel radius of the body
+    const planetPixelRadius = (config.sceneRadius / visibleHeight) * size.height;
+    
+    // 24px gap outside the planet's outer circumference
+    const gap = 24;
+    const offset = planetPixelRadius + gap;
+
+    hudRef.current.style.transform = `translate(calc(-100% - ${offset}px), -50%)`;
+  });
+
+  if (cameraMode !== 'focus' || !showTelemetry || !config) return null;
 
   const now = new Date();
-  const pos = getPlanetPosition(bodyId, now);
-  // Approximation of distance from parent (Sun or Earth) in AU based on current positional magnitude
-  // This is a rough estimation for flavor. 
-  // In a real app we'd compute the distance between the two bodies' Heliocentric vectors.
-  let distAU = Math.sqrt(pos.x*pos.x + pos.y*pos.y + pos.z*pos.z);
-  
-  // For moon, it orbits earth so its helio dist is ~1 AU. 
-  // Let's just hardcode some flavor text or approximate it.
-  if (bodyId === 'moon') distAU = 0.00256; 
+  let distAU = 0;
+  if (config.astronomyEngineBody) {
+    const hv = HelioVector(config.astronomyEngineBody, now);
+    distAU = Math.sqrt(hv.x * hv.x + hv.y * hv.y + hv.z * hv.z);
+  }
 
   const distText = distAU.toFixed(4) + ' AU';
   
-  // Fake or hardcoded telemetry for flavor, based on the body
+  // Telemetry details based on the body
   const telemetry = {
     mercury: { rot: '1407.6 hr', orb: '88.0 d' },
     venus: { rot: '-5832.5 hr', orb: '224.7 d' },
@@ -44,26 +72,44 @@ export default function TelemetryHUD({ bodyId }: TelemetryHUDProps) {
   }[bodyId] || { rot: 'UNKNOWN', orb: 'UNKNOWN' };
 
   return (
-    <Html
-      position={[config.sceneRadius * 1.5, config.sceneRadius * 1.5, 0]}
-      style={{ pointerEvents: 'none' }}
-      zIndexRange={[50, 0]}
-    >
-      <div className="flex flex-col font-mono text-[10px] tracking-widest text-left whitespace-nowrap crt-glow opacity-80 pl-8 border-l border-dashed" style={{ borderColor: 'var(--color-structure)' }}>
-        <div className="mb-1 font-bold border-b border-dashed pb-1" style={{ borderColor: 'var(--color-structure)' }}>
-          {config.displayName.toUpperCase()} TELEMETRY
+    <group ref={groupRef}>
+      <Html
+        position={[0, 0, 0]}
+        style={{ pointerEvents: 'none' }}
+        zIndexRange={[50, 0]}
+      >
+        <div 
+          ref={hudRef}
+          className="relative flex flex-col font-mono text-[10px] tracking-widest text-right whitespace-nowrap crt-glow opacity-80 pr-4 border-r border-dashed select-none" 
+          style={{ 
+            borderColor: 'var(--color-structure)',
+            transform: 'translate(-100%, -50%)',
+          }}
+        >
+          {/* Horizontal leader line extending to the planet circumference */}
+          <div 
+            className="absolute right-[-24px] top-1/2 w-6 border-t border-dashed pointer-events-none" 
+            style={{ borderColor: 'var(--color-structure)' }}
+          />
+
+          <div 
+            className="mb-1 font-bold border-b border-dashed pb-1" 
+            style={{ borderColor: 'var(--color-structure)' }}
+          >
+            {config.displayName.toUpperCase()} TELEMETRY
+          </div>
+          <div className="grid grid-cols-[auto_auto] gap-x-3 justify-end text-right">
+            <span className="opacity-70">DIST:</span>
+            <span>{distText}</span>
+            
+            <span className="opacity-70">ROTATION:</span>
+            <span>{telemetry.rot}</span>
+            
+            <span className="opacity-70">ORBIT:</span>
+            <span>{telemetry.orb}</span>
+          </div>
         </div>
-        <div className="grid grid-cols-[80px_1fr] gap-x-2">
-          <span className="opacity-70">DIST:</span>
-          <span>{distText}</span>
-          
-          <span className="opacity-70">ROTATION:</span>
-          <span>{telemetry.rot}</span>
-          
-          <span className="opacity-70">ORBIT:</span>
-          <span>{telemetry.orb}</span>
-        </div>
-      </div>
-    </Html>
+      </Html>
+    </group>
   );
 }

@@ -90,9 +90,9 @@ export default function DashboardShell() {
       </header>
 
       {/* ── Main three-column grid ──────────────────────────────────────── */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[260px_1fr_260px] min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[260px_1fr_260px] min-h-0 overflow-hidden">
         {/* Left panel — Status Indicator */}
-        <aside className="hidden lg:flex flex-col gap-4">
+        <aside className="hidden lg:flex flex-col h-full min-h-0 overflow-hidden">
           <StatusIndicator />
         </aside>
 
@@ -117,7 +117,7 @@ export default function DashboardShell() {
         </main>
 
         {/* Right panel — Asteroid Tracker */}
-        <aside className="hidden lg:flex flex-col gap-4">
+        <aside className="hidden lg:flex flex-col h-full min-h-0 overflow-hidden">
           <AsteroidTracker />
         </aside>
       </div>

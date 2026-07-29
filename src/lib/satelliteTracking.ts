@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as satellite from 'satellite.js';
 import * as THREE from 'three';
+import { useCelestialStore } from '@/stores/useCelestialStore';
 
 const EARTH_RADIUS_KM = 6371.0;
 const EARTH_SCENE_RADIUS = 1.5;
@@ -33,6 +34,20 @@ export function useSatellites() {
             satrec: satellite.twoline2satrec(d.tleLine1, d.tleLine2)
           }));
           setSatellites(loaded);
+          
+          const store = useCelestialStore.getState();
+          if (store.visibleSatellites.length === 0 && loaded.length > 0) {
+            const PRIORITY = ['25544', '20580', '50463']; // ISS, Hubble, JWST
+            const priorityIds = loaded
+              .filter(s => PRIORITY.includes(s.data.noradId))
+              .map(s => s.data.noradId);
+            const otherIds = loaded
+              .filter(s => !PRIORITY.includes(s.data.noradId))
+              .map(s => s.data.noradId);
+            
+            const defaultSet = [...priorityIds, ...otherIds.slice(0, 10 - priorityIds.length)];
+            store.setVisibleSatellites(defaultSet);
+          }
         }
       } catch (err) {
         console.error('[useSatellites] Failed to load satellite data:', err);
